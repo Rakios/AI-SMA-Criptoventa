@@ -11,6 +11,7 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class OferenteAgent extends Agent {
 	// Lista de las monedas que el oferante esta interesado en comprar
@@ -25,8 +26,8 @@ public class OferenteAgent extends Agent {
 		monedaInteres = new Hashtable();
 
 		// Generar la GUI
-		myGui = new OferenteGui(this);
-		myGui.showGui();
+		//myGui = new OferenteGui(this);
+		//myGui.showGui();
 
 		// Registrar el agente en el directorio
 		DFAgentDescription dfd = new DFAgentDescription();
@@ -72,16 +73,30 @@ public class OferenteAgent extends Agent {
 			if (msg != null) { // si el mensaje no es nulo la oferta es valida
 				
 				// Procesar el contenido de la oferta 
-				String coin = msg.getContent(); // obtener el nombre de la moneda
+				String contenido = msg.getContent(); // obtener el contenido del mensaje
+				String[] cont = contenido.split(" ");
+				
+				String coin = cont[0]; // obtener nombre de la moneda
+				String priceOriginal = cont[1]; // obtener el valor que esta interesado en vender el intermediario
+				
+				//Generar un regateo del precio de forma random
+				int min = -100;
+                int max = 100;
+               // int regateo = (int)Math.random() * (max - min + 1) + min; 
+                int regateo = ThreadLocalRandom.current().nextInt(min, max + 1);
+				int price= Integer.parseInt(priceOriginal) + regateo;
+	
+				
+				System.out.println("Oferente-agent "+getAID().getName()+" quiere comprar la moneda y ofrece: "+price);
 				
 				ACLMessage reply = msg.createReply(); // crear un mensaje de respuesta
-				Integer price = (Integer) monedaInteres.get(coin); // obtener el valor que esta interesado en pagar el oferente por la moneda
+		//		Integer price = (Integer) monedaInteres.get(coin); // obtener el valor que esta interesado en pagar el oferente por la moneda
 				
-				if (price != null) { // si el valor no es nulo, es que esta en la lista de monedas 
+				if (price != 0) { // si el valor no es nulo
 				
 					// Realizar una proposicion de oferta por la moneda
 					reply.setPerformative(ACLMessage.PROPOSE);
-					reply.setContent(String.valueOf(price.intValue()));
+					reply.setContent(String.valueOf(price));
 				}
 				else {
 					// No estas interesado en comprar esa moneda, por lo que rechazas la peticion
@@ -106,15 +121,22 @@ public class OferenteAgent extends Agent {
 			
 			if (msg != null) { // si el mensaje no esta vacio es una aceptacion a la oferta
 				
-				// Se procesa el contenido del mensaje
-				String coin = msg.getContent();
+				
 				// se crea un mensaje para responder a la propocision
-				ACLMessage reply = msg.createReply();
+				
 				
 				// se obtiene el precio y se elimina la moneda de la lista de intereses
-				Integer price = (Integer) monedaInteres.remove(coin);
+			//	Integer price = (Integer) monedaInteres.remove(coin);
 				
-				if (price != null) {
+				String contenido = msg.getContent(); // obtener el contenido del mensaje
+				String[] cont = contenido.split(" ");
+				
+				String coin = cont[0]; // obtener nombre de la moneda
+				String priceOriginal = cont[1]; // obtener el valor que esta interesado en vender el intermediario
+				
+				ACLMessage reply = msg.createReply();
+				
+				if (priceOriginal != null) {
 					reply.setPerformative(ACLMessage.INFORM);
 					System.out.println(coin+" comprada al  Intermediario "+msg.getSender().getName());
 				}
@@ -143,7 +165,7 @@ public class OferenteAgent extends Agent {
 			fe.printStackTrace();
 		}
 		// cerrar la GUI
-		myGui.dispose();
+		//myGui.dispose();
 		// Mensaje de despedida
 		System.out.println("Oferente-agent "+getAID().getName()+" terminating.");
 	}

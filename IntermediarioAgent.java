@@ -1,6 +1,5 @@
 package cryptoAgent;
 
-
 import jade.core.Agent;
 import jade.core.AID;
 import jade.core.behaviours.*;
@@ -14,6 +13,7 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 public class IntermediarioAgent extends Agent {
 	// El nombre de la moneda que se quiere vender
 	private String targetCryptoCoin;
+	private String price;
 	// Lista de los oferentes activos
 	private AID[] oferenteAgents;
 
@@ -27,15 +27,19 @@ public class IntermediarioAgent extends Agent {
 		Object[] args = getArguments();
 		if (args != null && args.length > 0) {
 			targetCryptoCoin = (String) args[0];
-			System.out.println("La criptomoneda que se quiere vendes es: "+targetCryptoCoin);
+			price = (String) args[1];
+			
+			System.out.println("La criptomoneda que se quiere vender es: "+targetCryptoCoin+" al siguiente precio:"+price);
 
 			// Añadir un TickerBehaviour que repite una peticion a los Oferentes cada 30 seg
 			addBehaviour(new TickerBehaviour(this, 30000) {
 				protected void onTick() {
 					System.out.println("Intentado vender "+targetCryptoCoin);
+					
 					// Se inicializa un template para buscar a los agentes en el directorio
 					DFAgentDescription template = new DFAgentDescription();
 					ServiceDescription sd = new ServiceDescription();
+					
 					// que esten relacionados con el tipo crypto-compra
 					sd.setType("crypto-compra");
 					template.addServices(sd);
@@ -44,7 +48,8 @@ public class IntermediarioAgent extends Agent {
 						DFAgentDescription[] result = DFService.search(myAgent, template); 
 						System.out.println("Se encontraron los siguientes agentes:");
 						oferenteAgents = new AID[result.length];
-						// se almacenan los nombres de los Oferentes en un array
+					
+					// se almacenan los nombres de los Oferentes en un array
 						for (int i = 0; i < result.length; ++i) {
 							oferenteAgents[i] = result[i].getName();
 							System.out.println(oferenteAgents[i].getName());
@@ -90,8 +95,8 @@ public class IntermediarioAgent extends Agent {
 				for (int i = 0; i < oferenteAgents.length; ++i) {
 					cfp.addReceiver(oferenteAgents[i]);
 				} 
-				//añadir el nombre de la moneda al contenido del mensaje
-				cfp.setContent(targetCryptoCoin);
+				//añadir el nombre de la moneda al contenido del mensaje y el precio
+				cfp.setContent(targetCryptoCoin+" "+price);
 				//indicar el id de la conversacion
 				cfp.setConversationId("crypto-trade");
 				cfp.setReplyWith("cfp"+System.currentTimeMillis()); // Unique value
@@ -135,7 +140,7 @@ public class IntermediarioAgent extends Agent {
 				
 				ACLMessage order = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
 				order.addReceiver(bestOferente);
-				order.setContent(targetCryptoCoin);
+				order.setContent(targetCryptoCoin+" "+bestPrice);
 				order.setConversationId("crypto-trade");
 				order.setReplyWith("order"+System.currentTimeMillis());
 				myAgent.send(order);
