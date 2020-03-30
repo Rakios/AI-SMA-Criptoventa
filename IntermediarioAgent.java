@@ -24,11 +24,19 @@ public class IntermediarioAgent extends Agent {
 		System.out.println("Hello! Intermediario-agent "+getAID().getName()+" is ready.");
 
 		// Obtener el nombre de la moneda del argumento de creacion
-		Object[] args = getArguments();
-		if (args != null && args.length > 0) {
-			targetCryptoCoin = (String) args[0];
-			price = (String) args[1];
+		//Object[] args = getArguments();
+	//	if (args != null && args.length > 0) {
+	//		targetCryptoCoin = (String) args[0];
+	//		price = (String) args[1];
 			
+			System.out.println("Agent "+getLocalName()+": waiting for INFORM message...");
+		ACLMessage msg = blockingReceive(MessageTemplate.MatchPerformative(ACLMessage.INFORM));
+		String contenido = msg.getContent(); // obtener el contenido del mensaje
+				String[] cont = contenido.split(" ");
+				
+				targetCryptoCoin = (String) cont[0]; // obtener nombre de la moneda
+				price = (String) cont[1]; // obtener el valor que esta interesado en vender el intermediario
+				if (targetCryptoCoin != null ) {
 			System.out.println("La criptomoneda que se quiere vender es: "+targetCryptoCoin+" al siguiente precio:"+price);
 
 			// Añadir un TickerBehaviour que repite una peticion a los Oferentes cada 30 seg
