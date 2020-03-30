@@ -17,17 +17,14 @@ public class OferenteAgent extends Agent {
 	// Lista de las monedas que el oferante esta interesado en comprar
 	private Hashtable monedaInteres;
 	
-	// GUI para agregar nuevas monedas a la lista
-	private OferenteGui myGui;
+
 
 	// Inicializacion del agente
 	protected void setup() {
 		// Crear la lista de las monedas que esta interesado en comprar
 		monedaInteres = new Hashtable();
 
-		// Generar la GUI
-		//myGui = new OferenteGui(this);
-		//myGui.showGui();
+
 
 		// Registrar el agente en el directorio
 		DFAgentDescription dfd = new DFAgentDescription();
@@ -53,15 +50,6 @@ public class OferenteAgent extends Agent {
 	}
 
 	
-    // Gui para actualizar la lista de monedas del oferente
-	public void updateMonedaInteres(final String coin, final int price) {
-		addBehaviour(new OneShotBehaviour() {
-			public void action() {
-				monedaInteres.put(coin, new Integer(price));
-				System.out.println("Interesado en comprar "+coin+" al precio = "+price);
-			}
-		} );
-	}
 
 	// se recibe las ofertas de venta de monedas 
 	private class OfertaCoin extends CyclicBehaviour {
@@ -79,27 +67,46 @@ public class OferenteAgent extends Agent {
 				String coin = cont[0]; // obtener nombre de la moneda
 				String priceOriginal = cont[1]; // obtener el valor que esta interesado en vender el intermediario
 				
+				String cantidad =  cont[2]; // obtener la cantidad
+				String monedaFid = cont[3]; // obtener la moneda fidusaria
+				String metodoPago = cont[4]; // obtener el metodo de pago
+				
 				//Generar un regateo del precio de forma random
-				int min = -100;
-                int max = 100;
+				int min = -10;
+                int max = 10;
                // int regateo = (int)Math.random() * (max - min + 1) + min; 
                 int regateo = ThreadLocalRandom.current().nextInt(min, max + 1);
 				int price= Integer.parseInt(priceOriginal) + regateo;
 	
 				
-				System.out.println("Oferente-agent "+getAID().getName()+" quiere comprar la moneda y ofrece: "+price);
+				//Generar un regateo del precio de forma random
+				//double minCant = 0.01;
+               // double maxCant =  Double.parseDouble(cantidad) ;
+               // int regateo = (int)Math.random() * (max - min + 1) + min; 
+               // double cantBuy = ThreadLocalRandom.current().nextInt(minCant, maxCant + 1);
+				
+				//Generar random para saber si el oferente esta activo o no
+				 min = 0;
+                 max = 1;
+                int activo = ThreadLocalRandom.current().nextInt(min, max + 1);
+				
+				
+				
 				
 				ACLMessage reply = msg.createReply(); // crear un mensaje de respuesta
 		//		Integer price = (Integer) monedaInteres.get(coin); // obtener el valor que esta interesado en pagar el oferente por la moneda
 				
-				if (price != 0) { // si el valor no es nulo
+				if (price != 0 && activo == 1 ) { // si el valor no es nulo
 				
 					// Realizar una proposicion de oferta por la moneda
+				
+					System.out.println("Oferente: "+getAID().getName()+" quiere comprar "+cantidad+" unidades de "+coin +" y ofrece: "+price+" en "+metodoPago);
 					reply.setPerformative(ACLMessage.PROPOSE);
 					reply.setContent(String.valueOf(price));
 				}
 				else {
 					// No estas interesado en comprar esa moneda, por lo que rechazas la peticion
+					System.out.println("Oferente: "+getAID().getName()+" No esta interesado" );
 					reply.setPerformative(ACLMessage.REFUSE);
 					reply.setContent("no-interesado");
 				}

@@ -12,8 +12,12 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 public class IntermediarioAgent extends Agent {
 	// El nombre de la moneda que se quiere vender
-	private String targetCryptoCoin;
+	private String nombreCoin;
 	private String price;
+	private String cantidad;
+	private String metodoPago;
+	private String monedaFid;
+	private AID cliente;
 	// Lista de los oferentes activos
 	private AID[] oferenteAgents;
 
@@ -21,28 +25,39 @@ public class IntermediarioAgent extends Agent {
 	protected void setup() {
 		
 		// Mensaje de inicio
-		System.out.println("Hello! Intermediario-agent "+getAID().getName()+" is ready.");
+		System.out.println("Bienvenido a CryptoMarket_SMA ");
+		System.out.println("El agente "+getAID().getName()+" esta listo para atender su solicitud");
 
 		// Obtener el nombre de la moneda del argumento de creacion
 		//Object[] args = getArguments();
 	//	if (args != null && args.length > 0) {
-	//		targetCryptoCoin = (String) args[0];
+	//		nombreCoin = (String) args[0];
 	//		price = (String) args[1];
 			
-			System.out.println("Agent "+getLocalName()+": waiting for INFORM message...");
+			// Se espera por el mensaje del cliente informando su venta
+			System.out.println("Agent "+getLocalName()+": esperando por anuncio de venta...");
 		ACLMessage msg = blockingReceive(MessageTemplate.MatchPerformative(ACLMessage.INFORM));
+		if(msg != null){
+		cliente = msg.getSender();
 		String contenido = msg.getContent(); // obtener el contenido del mensaje
 				String[] cont = contenido.split(" ");
 				
-				targetCryptoCoin = (String) cont[0]; // obtener nombre de la moneda
-				price = (String) cont[1]; // obtener el valor que esta interesado en vender el intermediario
-				if (targetCryptoCoin != null ) {
-			System.out.println("La criptomoneda que se quiere vender es: "+targetCryptoCoin+" al siguiente precio:"+price);
-
+				
+				cantidad = (String) cont[1]; // obtener la cantidad
+				nombreCoin = (String) cont[2]; // obtener nombre de la moneda
+				price = (String) cont[4]; // obtener el valor que esta interesado en vender el intermediario
+				monedaFid = (String) cont[5]; // obtener la moneda fidusaria
+				metodoPago = (String) cont[7]; // obtener el metodo de pago
+				
+				if (nombreCoin != null ) {
+			System.out.println("La criptomoneda que se quiere vender es: "+nombreCoin);
+            System.out.println("Cantidad: "+cantidad+", precio: "+price+", moneda fidusaria: "+monedaFid+", metodo de pago: "+metodoPago);
+			
+			
 			// Añadir un TickerBehaviour que repite una peticion a los Oferentes cada 30 seg
 			addBehaviour(new TickerBehaviour(this, 30000) {
 				protected void onTick() {
-					System.out.println("Intentado vender "+targetCryptoCoin);
+					System.out.println("Intentado vender "+nombreCoin);
 					
 					// Se inicializa un template para buscar a los agentes en el directorio
 					DFAgentDescription template = new DFAgentDescription();
@@ -54,13 +69,13 @@ public class IntermediarioAgent extends Agent {
 					try {
 						// Se buscan los agentes basado en el template creado
 						DFAgentDescription[] result = DFService.search(myAgent, template); 
-						System.out.println("Se encontraron los siguientes agentes:");
+						System.out.println("Se encontraron los siguientes oferentes:");
 						oferenteAgents = new AID[result.length];
 					
 					// se almacenan los nombres de los Oferentes en un array
 						for (int i = 0; i < result.length; ++i) {
 							oferenteAgents[i] = result[i].getName();
-							System.out.println(oferenteAgents[i].getName());
+							//System.out.println(oferenteAgents[i].getName());
 						}
 					}
 					catch (FIPAException fe) {
@@ -71,13 +86,17 @@ public class IntermediarioAgent extends Agent {
 					myAgent.addBehaviour(new RequestPerformer());
 				}
 			} );
-		}
-		else {
+		}else {
 			// Make the agent terminate
 			System.out.println("No se encontro el nombre de la moneda");
 			doDelete();
+		
 		}
-	}
+		}else{
+			System.out.println("Mensage erroneo");
+		doDelete();
+		}
+		}
 
 	// Funcion para terminar el agente
 	protected void takeDown() {
@@ -104,7 +123,7 @@ public class IntermediarioAgent extends Agent {
 					cfp.addReceiver(oferenteAgents[i]);
 				} 
 				//añadir el nombre de la moneda al contenido del mensaje y el precio
-				cfp.setContent(targetCryptoCoin+" "+price);
+				cfp.setContent(nombreCoin+" "+price+" "+cantidad+" "+monedaFid+" "+metodoPago);
 				//indicar el id de la conversacion
 				cfp.setConversationId("crypto-trade");
 				cfp.setReplyWith("cfp"+System.currentTimeMillis()); // Unique value
@@ -148,7 +167,7 @@ public class IntermediarioAgent extends Agent {
 				
 				ACLMessage order = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
 				order.addReceiver(bestOferente);
-				order.setContent(targetCryptoCoin+" "+bestPrice);
+				order.setContent(nombreCoin+" "+bestPrice);
 				order.setConversationId("crypto-trade");
 				order.setReplyWith("order"+System.currentTimeMillis());
 				myAgent.send(order);
@@ -166,12 +185,13 @@ public class IntermediarioAgent extends Agent {
 					// Recibida respuesta a la venta
 					if (reply.getPerformative() == ACLMessage.INFORM) {
 						// Venta realizada 
-						System.out.println(targetCryptoCoin+" Exitosamente vendido al oferente "+reply.getSender().getName());
+						System.out.println("Intermediario: "+nombreCoin+" Exitosamente vendida al oferente "+reply.getSender().getName());
 						System.out.println("Price = "+bestPrice);
-						myAgent.doDelete();
+						
 					}
 					else {
 						System.out.println("Ha ocurrido un fallo: el oferente ya ha comprado monedas a otro vendedor.");
+						
 					}
 
 					step = 4;
@@ -180,14 +200,26 @@ public class IntermediarioAgent extends Agent {
 					block();
 				}
 				break;
+				
+			case 4: // Informar al cliente que su moneda se ha vendido exitosamente
+				
+				ACLMessage resultado = new ACLMessage(ACLMessage.INFORM);
+				resultado.addReceiver(cliente);
+				resultado.setContent("Su moneda ha sido vendida exitosamente al oferente:"+ bestOferente+"por un costo de "+bestPrice );
+				myAgent.send(resultado);
+				// Prepare the template to get the purchase order reply
+				
+				myAgent.doDelete();
+				step = 5;
+				break;
 			}        
 		}
 
 		public boolean done() {
 			if (step == 2 && bestOferente == null) {
-				System.out.println("Ha ocurrido un fallo: "+targetCryptoCoin+" No esta disponible para la venta");
+				System.out.println("Ha ocurrido un fallo: NA¿adie esta interesado en comprar "+nombreCoin);
 			}
-			return ((step == 2 && bestOferente == null) || step == 4);
+			return ((step == 2 && bestOferente == null) || step == 5);
 		}
 	}  // End of inner class RequestPerformer
 }
